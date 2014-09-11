@@ -27,7 +27,7 @@
 * thread to report information as it is acquired
 *	timer to handle sample reading
 *	method to report samples
-*	Eventually, load it to a GCTP (using TCP/UDP?) and connect to server
+*	Eventually, load it to a GCTP (using TCP) and connect to server
 * thread(s) to handle sampling (eventually three threads to sample from each connection)
 * 	timer to handle sampling timing
 * 	method to do sampling
