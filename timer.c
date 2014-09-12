@@ -39,7 +39,7 @@ void start_timer(struct timer *t, unsigned long duration)
 	t->duration = duration;
 }
 
-bool end_timer(struct timer *t)
+int end_timer(struct timer *t)
 {
 	return get_usecs() >= t->stime + t->duration;
 }
