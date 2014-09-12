@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 #include <linux/if.h>
 #include <linux/wireless.h>
+#include <math.h>
 #include "timer.h" //code segments taken from wavemon.h
 
 /*
@@ -39,6 +40,17 @@
 void *get_samples(void* buffer);
 void *put_samples(void* buffer);
 
+//value conversion functions
+static inline int u8_to_dbm(const int power)
+{
+	return power > 63 ? power - 0x100 : power;
+}
+
+/* Convert log dBm values to linear mW */
+static inline double dbm2mw(const double in)
+{
+	return pow(10.0, in / 10.0);
+}
 //wavemon utility functions
 //device information
 static int if_get_flags(int skfd, const char *ifname);
@@ -50,7 +62,7 @@ pthread_mutex_t bufmut; // buffer's mutex
 
 struct sample_buffer{
 	char* iwname;
-	int* readings;
+	double* readings;
 	int max_samples;
 	int last_sample;
 	int read_state;
@@ -86,9 +98,9 @@ void main(int argc, char*argv[]){
 
 	//initialize buffer
 	buffer.iwname=ifname;
-	buffer.readings=malloc(samples*sizeof(int));
+	buffer.readings=malloc(sizeof(double)*(samples));
 	buffer.max_samples=samples;
-	buffer.last_sample=-1;
+	buffer.last_sample=0;
 	buffer.read_state=READ;
 	buffer.time_between_samples=sample_interval;
 	buffer.alarm=&coordinator;
@@ -109,6 +121,8 @@ void main(int argc, char*argv[]){
 	pthread_join(sampler,&thread_status);
 	pthread_join(reader,&thread_status);
 
+//	printf("Attempting to release the buffer now\n");
+
 	free(buffer.readings);
 	pthread_mutex_destroy(&bufmut);
 	pthread_exit(NULL);
@@ -124,9 +138,9 @@ void *put_samples(void* args)
 		pthread_mutex_trylock(&bufmut);
 		if(!end_timer(buffer->alarm))//between readings
 		{
-			if(buffer->last_sample>-1 && buffer->read_state==UNREAD)//nothing's been written to the buffer yet
+			if(buffer->read_state==UNREAD)//don't re-read already read data
 			{
-				printf("%d\t",buffer->readings[buffer->last_sample]);
+				printf("%f\t",buffer->readings[buffer->last_sample]);
 				buffer->read_state=READ;
 			}
 		}
@@ -146,11 +160,11 @@ void *get_samples(void* args)
 		if(end_timer(buffer->alarm))
 		{
 			iw_getstat(&reading,buffer->iwname);
-			printf("Attempting a reading from %s\n", buffer->iwname);
+//			printf("Attempting a reading from %s\n", buffer->iwname);
 			pthread_mutex_lock(&bufmut);
-			buffer->last_sample++;
 			buffer->read_state=UNREAD;
-			buffer->readings[buffer->last_sample]=reading.qual.level;
+			buffer->readings[buffer->last_sample]=u8_to_dbm(reading.qual.level);
+			buffer->last_sample++;
 			start_timer(buffer->alarm,buffer->time_between_samples);
 			pthread_mutex_unlock(&bufmut);
 		}
