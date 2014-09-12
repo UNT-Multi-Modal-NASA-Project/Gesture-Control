@@ -3,32 +3,37 @@
 * adapter. Uses the general wireless interface defined in wireless.h and
 * ioctl. Should be compliled with the -lpthread flag.
 */
-//for input/output
+//selected includes
 #include <stdio.h>
 #include <stdlib.h>
-#include <ioctl.h>
-
-//taken directly from wavemon's iw_if.h, may need to trim down
-//#include <netdb.h>//
+#include <sys/ioctl.h>
 #include <pthread.h>
-//#include <arpa/inet.h>//
-#include <netinet/in.h>
-//#include <netinet/ether.h>//
-//#include <net/if_arp.h>//
-//#include <net/ethernet.h>//
+#include <string.h>
+#include <memory.h>
 #include <sys/socket.h>
 #include <linux/if.h>
 #include <linux/wireless.h>
-#include <uapi/linux/sockios.h>
+#include "timer.h" //code segments taken from wavemon.h
+
 /*
+* taken directly from wavemon's iw_if.h, may need to trim down
+* #include <netdb.h>
+* #include <arpa/inet.h>
+* #include <netinet/in.h>
+* #include <netinet/ether.h>
+* #include <net/if_arp.h>
+* #include <net/ethernet.h>
+
+* #include <uapi/linux/sockio.h> //variant trying to get an ioctl cmd
+
 * taken from example code that does similar stuff
 * #include <linux/wireless.h>
 * #include <sys/types.h>
 * #include <sys/socket.h>
 */
 
-//code segments taken from wavemon.h
-#include "timer.h"
+#define READ 0
+#define UNREAD 1
 
 //thread functions
 void *get_samples(void* buffer);
@@ -48,6 +53,7 @@ struct sample_buffer{
 	int* readings;
 	int max_samples;
 	int last_sample;
+	int read_state;
 	unsigned long time_between_samples;
 	struct timer *alarm;
 };
@@ -83,6 +89,7 @@ void main(int argc, char*argv[]){
 	buffer.readings=malloc(samples*sizeof(int));
 	buffer.max_samples=samples;
 	buffer.last_sample=-1;
+	buffer.read_state=READ;
 	buffer.time_between_samples=sample_interval;
 	buffer.alarm=&coordinator;
 
@@ -114,11 +121,16 @@ void *put_samples(void* args)
 
 	while(buffer->last_sample< buffer->max_samples)
 	{
-		if(mutex_trylock(&bufmut)==0 && !end_timer(buffer->alarm))
+		pthread_mutex_trylock(&bufmut);
+		if(!end_timer(buffer->alarm))//between readings
 		{
-			if(buffer->last_sample>-1)//nothing's been written to the buffer yet
+			if(buffer->last_sample>-1 && buffer->read_state==UNREAD)//nothing's been written to the buffer yet
+			{
 				printf("%d\t",buffer->readings[buffer->last_sample]);
+				buffer->read_state=READ;
+			}
 		}
+		pthread_mutex_unlock(&bufmut);
 	}
 	printf("\n");
 }
@@ -134,11 +146,13 @@ void *get_samples(void* args)
 		if(end_timer(buffer->alarm))
 		{
 			iw_getstat(&reading,buffer->iwname);
-			mutex_lock(&bufmut);
+			printf("Attempting a reading from %s\n", buffer->iwname);
+			pthread_mutex_lock(&bufmut);
 			buffer->last_sample++;
+			buffer->read_state=UNREAD;
 			buffer->readings[buffer->last_sample]=reading.qual.level;
 			start_timer(buffer->alarm,buffer->time_between_samples);
-			mutex_unlock(&bufmut);
+			pthread_mutex_unlock(&bufmut);
 		}
 	}
 	pthread_exit(NULL);
@@ -146,15 +160,12 @@ void *get_samples(void* args)
 
 static void iw_getstat(struct iw_statistics *stats, char* iwname){
 	int sockfd;
-	struct iwreq req = {
-		.ifr_name = iwname,
-		.u.data = {
-			.pointer = stats,
-#ifdef CLEAR_UPDATED
-			.flags = 1
-#endif
-		}
-	};
+	struct iwreq req;
+
+	req.u.data.pointer=(caddr_t)stats;
+	req.u.data.length=sizeof (*stats);
+	req.u.data.flags=0;
+	strncpy(req.ifr_name,iwname,IFNAMSIZ);
 
 	/* Any old socket will do, and a datagram socket is pretty cheap */
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
@@ -164,7 +175,7 @@ static void iw_getstat(struct iw_statistics *stats, char* iwname){
 
 	/* Perform the ioctl */
 	if(ioctl(sockfd, SIOCGIWSTATS, &req) == -1) {
-		perror("Error performing SIOCGIWSTATS on ");
+		perror("Error performing SIOCGIWSTATS on wlan0");
 		close(sockfd);
 		pthread_exit(NULL);
 	}
@@ -176,10 +187,14 @@ static int if_get_flags(int skfd, const char *ifname){
 	struct ifreq ifr;
 
 	memset(&ifr,0, sizeof(struct ifreq));
-	strncpy(ifr.ifr_name,ifname,sizeof(ifr.ifr_name)-1);
+	strcpy(ifr.ifr_name,ifname);
+	if((skfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+		perror("Could not create simple datagram socket");
+		return ifr.ifr_flags;
+	}
 
 	if(ioctl(skfd, SIOCGIFFLAGS, &ifr)<0)
-		err_sys("can not get interface flags for %s", ifname);
+		perror("can not get interface flags for wlan0");
 	return ifr.ifr_flags;
 }
 

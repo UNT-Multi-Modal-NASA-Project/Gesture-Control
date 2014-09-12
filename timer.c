@@ -22,7 +22,7 @@
 /*********************end wavemon statements********************************
  */
 #include "timer.h" //modified to draw this out of the wavemon ui
-
+#include <sys/time.h>
 static unsigned long get_usecs(void)
 {
 	struct timeval tv;

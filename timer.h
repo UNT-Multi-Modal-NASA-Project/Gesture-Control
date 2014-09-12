@@ -12,6 +12,6 @@ struct timer{
 };
 
 void start_timer(struct timer *t, unsigned long d);
-bool end_timer(struct timer *t);
+int end_timer(struct timer *t);
 static unsigned long get_usecs();
 #endif
