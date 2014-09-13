@@ -18,13 +18,13 @@
 int u8_to_dbm(const int power);
 double dbm2mw(const double in);
 char scale(double*);
-double mavg(double, double, double);
-void get_samples(char * iwname, int max_samples);
+double ewma(double, double, double);
+void get_samples(char * iwname, int max_samples, int avg);
 static void iw_getstat(struct iw_statistics *, char *);//actually reads the value
 
 void main(int argc, char*argv[]){
 	char *ifname={"wlan0"};
-	int i;
+	int i, avg_flag;
 	long samples=16;
 
 	for(i=1;i<argc;i++){
@@ -32,24 +32,26 @@ void main(int argc, char*argv[]){
 			samples=strtol(argv[++i],NULL,0);
 	//	else if (strcmp(argv[i], "-i")==0)
 	//		sample_interval=strtoul(argv[++i], NULL,0);
+		else if (strcmp(argv[i], "-a")==0)
+			avg_flag=1;
 		else if (argc>0){
-			printf("Usage: pwrsamp [-s <# of samples to take> -i <usec between samples>\n");
+			printf("Usage: pwrsamp [-s <# of samples to take> -i <usec between samples> -a\n");
 			exit(EXIT_SUCCESS);
 		}
 	}
 
 	//so with this configuration, there should be 16 samples, taken over
 	//	16000 usec, or 1.6 msec, or .0016 sec
-	get_samples(ifname,samples);
+	get_samples(ifname,samples, avg_flag);
 }
 
 //sampler functions
-void get_samples(char* ifname,int samples)
+void get_samples(char* ifname,int samples,int flag)
 {
 	struct iw_statistics reading;
-	int level, dbm, noise_lvl, noise_dbm;
-	double power,noise_pwr,avg_pwr;
-	char unit, noise_unt;
+	int level, dbm;
+	double power, decay=10,avg_pwr=0, mavg=0;
+	char unit;
 	int i=0;
 
 	printf("Reading levels:\n");
@@ -60,19 +62,14 @@ void get_samples(char* ifname,int samples)
 		level=reading.qual.level;
 		dbm=u8_to_dbm(level);
 		power=dbm2mw(dbm);
-		noise_lvl=reading.qual.noise;
-		noise_dbm=u8_to_dbm(noise_lvl);
-		noise_pwr=dbm2mw(noise_dbm);
 		unit=scale(&power);
-		noise_unt=scale(&noise_pwr);
-		printf("%d\t%d(dbm)\t%.2f(%cW)\t%d\t%d(dbm)\t%.2f(%cW)\n", level,dbm,power,unit, noise_lvl, noise_dbm, noise_pwr,noise_unt);
+		mavg=ewma(mavg,power,decay/100.0);
+		printf("%d\t%d(dbm)\t%f(%cW)\t%f\n", level,dbm,power,unit,mavg);
 		i++;
-		avg_pwr=mavg(avg_pwr,power,i);
+		avg_pwr=(avg_pwr*(i-1)+power)/i;
 	}
-	printf("%.2f(%cW)\n",avg_pwr,unit);
-}
-double mavg(double avg,double newread,double num){
-	return (avg*(num-1)+newread)/num;
+	if(flag)
+		printf("%d readings|%f average\n",i,avg_pwr);
 }
 static void iw_getstat(struct iw_statistics *stats, char* iwname){
 	int sockfd;
@@ -124,4 +121,7 @@ char scale(double* in)
 		return 'm';
         }
 }
-
+double ewma(double avg, double sample, double weight)
+{
+	return avg==0 ? sample : weight * avg + (1.0-weight)*sample;
+}
