@@ -15,17 +15,25 @@
 #include <linux/wireless.h>
 #include <tgmath.h>
 
+struct reading{
+	double pwr;
+	char prefix;
+};
+
 int u8_to_dbm(const int power);
 double dbm2mw(const double in);
 char scale(double*);
 double ewma(double, double, double);
-void get_samples(char * iwname, int max_samples, int avg);
+struct reading get_sample(char * iwname, int max_samples, int avg);
+void put_sample(struct reading *);
 static void iw_getstat(struct iw_statistics *, char *);//actually reads the value
 
 void main(int argc, char*argv[]){
 	char *ifname={"wlan0"};
-	int i, avg_flag;
+	int i, avg_flag,decay=1;
 	long samples=16;
+	struct reading rdg;
+	double mavg;
 
 	for(i=1;i<argc;i++){
 		if(strcmp(argv[i],"-s")==0)
@@ -42,34 +50,43 @@ void main(int argc, char*argv[]){
 
 	//so with this configuration, there should be 16 samples, taken over
 	//	16000 usec, or 1.6 msec, or .0016 sec
-	get_samples(ifname,samples, avg_flag);
+	i=0;
+	while(i<samples)
+	{
+		rdg=get_sample(ifname,samples, avg_flag);
+		mavg=ewma(mavg,rdg.pwr,decay/100.0);
+		put_sample(&rdg);
+		i++;
+	};
+	printf("Samples: %d, Avg power: %f\n",i,mavg);
 }
 
 //sampler functions
-void get_samples(char* ifname,int samples,int flag)
+struct reading get_sample(char* ifname,int samples,int flag)
 {
 	struct iw_statistics reading;
 	int level, dbm;
 	double power, decay=10,avg_pwr=0, mavg=0;
 	char unit;
-	int i=0;
+	struct reading sample;
 
-	printf("Reading levels:\n");
+//	printf("Reading levels:\n");
 
-	while(i<samples)
-	{
-		iw_getstat(&reading,ifname);
-		level=reading.qual.level;
-		dbm=u8_to_dbm(level);
-		power=dbm2mw(dbm);
-		unit=scale(&power);
-		mavg=ewma(mavg,power,decay/100.0);
-		printf("%d\t%d(dbm)\t%f(%cW)\t%f\n", level,dbm,power,unit,mavg);
-		i++;
-		avg_pwr=(avg_pwr*(i-1)+power)/i;
-	}
-	if(flag)
-		printf("%d readings|%f average\n",i,avg_pwr);
+	iw_getstat(&reading,ifname);
+	level=reading.qual.level;
+	dbm=u8_to_dbm(level);
+	power=dbm2mw(dbm);
+	unit=scale(&power);
+//	printf("%d\t%d(dbm)\t%f(%cW)\t%f\t\t %s\n", level,dbm,power,unit,mavg,(reading.qual.updated & IW_QUAL_LEVEL_UPDATED ? "updated":""));
+
+	sample.pwr=power;
+	sample.prefix=unit;
+
+	return sample;
+}
+void put_sample(struct reading *rd)
+{
+	printf("Reading recieved: %f  %cW\n", rd->pwr,rd->prefix);
 }
 static void iw_getstat(struct iw_statistics *stats, char* iwname){
 	int sockfd;
@@ -77,7 +94,7 @@ static void iw_getstat(struct iw_statistics *stats, char* iwname){
 
 	req.u.data.pointer=(caddr_t)stats;
 	req.u.data.length=sizeof (*stats);
-	req.u.data.flags=0;
+	req.u.data.flags=1;
 	strncpy(req.ifr_name,iwname,IFNAMSIZ);
 
 	/* Any old socket will do, and a datagram socket is pretty cheap */
