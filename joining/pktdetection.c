@@ -1,26 +1,7 @@
-/*
-* taking a break from banging my head against the whole rx level problem,
-* and thought about taking a reading whenever a packet is recieved rather
-* than when the timer runs out.
-*/
+//packet detection functions
 
-#include "detection.h"
+#include "pktdetection.h"
 
-unsigned long long if_getrxpkt(char *ifname);
-char scale(double*);
-
-double dtct_pcket(char* if_nm){
-	unsigned long long old=if_getrxpkt(if_nm);
-	time_t start, stop;
-	time(&start);
-	while(if_getrxpkt(if_nm)<=old);
-	time(&stop);
-	return difftime(start,stop);
-}
-void rpt_pcket(double recieved){
-	char prefix=scale(&recieved);
-	printf("Packet recieved in %f %cs\n",recieved, prefix);
-}
 unsigned long long if_getrxpkt(char *ifname)
 {
         char line[0x100];
@@ -52,17 +33,34 @@ unsigned long long if_getrxpkt(char *ifname)
 
 char scale(double* in)
 {
-        if (*in < 0.00000001) {
+        if (*in < 0.00000001)
+	{
                 (*in)*=1e9;
                 return 'p';
-        } else if (*in < 0.00001) {
+        }
+	 else if (*in < 0.00001)
+	{
                 (*in)*=1e6;
                 return 'n';
-        } else if (*in < 0.01) {
+        }
+	else if (*in < 0.01)
+	{
                 (*in)*=1e3;
                 return 'u';
-        } else {
+        }
+	else {
                 return 'm';
         }
 }
-
+double dtct_pcket(char* if_nm){
+	unsigned long long old=if_getrxpkt(if_nm);
+	time_t start, stop;
+	time(&start);
+	while(if_getrxpkt(if_nm)<=old);
+	time(&stop);
+	return difftime(start,stop);
+}
+void rpt_pcket(double recieved){
+	char prefix=scale(&recieved);
+	printf("Packet recieved in %f %cs\n",recieved, prefix);
+}
