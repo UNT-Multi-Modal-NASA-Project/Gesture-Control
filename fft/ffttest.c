@@ -8,13 +8,14 @@
 #include <time.h>
 
 double get_rand();
+double **fft(double*);
+void printfft(double**);
 
-#define SAMPLESIZE 32
+#define SAMPLESIZE 16
+
 void main(){
-	fftw_real in[SAMPLESIZE];
-	fftw_real out[SAMPLESIZE];
-	fftw_real power_spectrum[SAMPLESIZE/2+1];
-	rfftw_plan p;
+	double in[SAMPLESIZE];
+	double sampleid[SAMPLESIZE];
 	int i;
 
 	srand(time(NULL));
@@ -22,10 +23,13 @@ void main(){
 	for(i=0;i<SAMPLESIZE;i++)
 		in[i]=get_rand();
 
-	printf("input:");
+	printf("input :\t");
 	for(i=0;i<SAMPLESIZE;i++)
-		printf("%.3f, ",in[i]);
+		printf("%.1f\t",in[i]);
 	printf("\n");
+	printf("sample:\t");
+	for(i=0;i<SAMPLESIZE;i++)
+		printf("%d\t", i);
 	printf("\n");
 
 	p=rfftw_create_plan(SAMPLESIZE, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE);
@@ -36,22 +40,34 @@ void main(){
 		power_spectrum[i]=out[0]*out[0]+out[SAMPLESIZE/2]*out[SAMPLESIZE/2];
 	if(SAMPLESIZE%2==0)
 		power_spectrum[SAMPLESIZE/2]=out[SAMPLESIZE/2]*out[SAMPLESIZE/2];
-
-	printf("output:");
+	printf("\n");
+	printf("output:\t");
 	for(i=0;i<SAMPLESIZE;i++)
-		printf("%.3f, ",out[i]);
+		printf("%.1f\t",out[i]);
 	printf("\n");
+	printf("freq?:\t");
+	for(i=0;i<SAMPLESIZE;i++)
+		printf("%.1f\t",(double)i/(double)(SAMPLESIZE));
 	printf("\n");
 
-	printf("power spectrum:");
-	for(i=0;i<(SAMPLESIZE+1)/2;i++)
-		printf("%.3f, ",power_spectrum[i]);
 	printf("\n");
+	printf("power spectrum:\t");
+	for(i=0;i<(SAMPLESIZE+1)/2;i++)
+		printf("%.1f\t",power_spectrum[i]);
+	printf("\n");
+	printf("frequency?:\t");
+	for(i=0;i<(SAMPLESIZE+1)/2;i++)
+		printf("%.4f\t",(double)i/(double)(SAMPLESIZE));
 	printf("\n");
 
 	rfftw_destroy_plan(p);
 }
 
 double get_rand(){
-	return rand()/1e6;
+	return (double)(rand()%10000000)/1e6;
 }
+double **fft(double *in){
+	fftw_real out[SAMPLESIZE];
+	fftw_real power_spectrum[SAMPLESIZE/2+1];
+	rfftw_plan p;
+
