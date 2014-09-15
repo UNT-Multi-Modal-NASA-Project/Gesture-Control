@@ -30,7 +30,7 @@ static void iw_getstat(struct iw_statistics *, char *);//actually reads the valu
 
 void main(int argc, char*argv[]){
 	char *ifname={"wlan0"};
-	int i, avg_flag,decay=1;
+	int i, avg_flag,decay=10;
 	long samples=16;
 	struct reading rdg;
 	double mavg;
