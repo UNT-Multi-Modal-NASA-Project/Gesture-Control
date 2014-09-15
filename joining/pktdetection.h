@@ -8,5 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef PKTDETECTION_H
+#define PKTDETECTION_H
 double dtct_pcket(char* if_nm);
 void rpt_pcket(double recieved);
+#endif
