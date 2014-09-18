@@ -90,7 +90,7 @@ void *put_samples(void* args)
 //		printf("Reader locking mutex\n");
 		if(buffer->read_state==UNREAD){
 			for(;buffer->last_read_sample<=buffer->last_sample;buffer->last_read_sample++)
-				printf("Read value: %.4f\n",buffer->readings[buffer->last_read_sample]);
+				printf("Read value: %.4f from position %d\n",buffer->readings[buffer->last_read_sample], buffer->last_read_sample);
 			buffer->read_state=READ;
 		}
 //		printf("Reader unlocking mutex\n");
@@ -117,7 +117,7 @@ void *make_samples(void* args)
 			buffer->read_state=UNREAD;
 			buffer->readings[buffer->last_sample]=get_randval();
 			buffer->last_sample++;
-			printf("Wrote value %f to position %d\n",buffer->readings[buffer->last_sample],buffer->last_sample);
+			printf("Wrote value %.4f to position %d\n",buffer->readings[buffer->last_sample],buffer->last_sample);
 //			printf("Writer unlocking mutex\n");
 			pthread_mutex_unlock(&bufmut);
 	}
@@ -125,5 +125,5 @@ void *make_samples(void* args)
 }
 double get_randval()
 {
-	return ((double)(rand()%1000))/1e3;
+	return ((double)(rand()%10000000))/1e6;
 }

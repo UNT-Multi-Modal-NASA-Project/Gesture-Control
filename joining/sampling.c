@@ -24,7 +24,7 @@ struct reading get_sample(char* ifname,int samples,int flag)
 	level=reading.qual.level;
 	dbm=u8_to_dbm(level);
 	power=dbm2mw(dbm);
-	unit=scale(&power);
+//	unit=scale(&power);
 //	printf("%d\t%d(dbm)\t%f(%cW)\t%f\t\t %s\n", level,dbm,power,unit,mavg,(reading.qual.updated & IW_QUAL_LEVEL_UPDATED ? "updated":""));
 
 	sample.pwr=power;
@@ -74,5 +74,8 @@ double dbm2mw(const double in)
 
 double ewma(double avg, double sample, double weight)
 {
-	return avg==0 ? sample : weight * avg + (1.0-weight)*sample;
+	if( avg==0)
+		return sample;
+	else
+		return (weight * avg + (1.0-weight)*sample);
 }

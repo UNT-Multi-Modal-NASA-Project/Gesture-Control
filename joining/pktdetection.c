@@ -33,24 +33,48 @@ unsigned long long if_getrxpkt(char *ifname)
 
 char scale(double* in)
 {
-        if (*in < 0.00000001)
+	if(*in>1e12)
 	{
-                (*in)*=1e9;
-                return 'p';
-        }
-	 else if (*in < 0.00001)
+		*in/=1e12;
+		return 'T';
+	}
+	else if(*in>1e9)
 	{
-                (*in)*=1e6;
-                return 'n';
-        }
-	else if (*in < 0.01)
+		*in/=1e9;
+		return 'G';
+	}
+	else if (*in >1e6)
 	{
-                (*in)*=1e3;
-                return 'u';
-        }
-	else {
-                return 'm';
-        }
+		*in/=1e6;
+		return 'M';
+	}
+	else if (*in >1e3)
+	{
+		*in/=1e3;
+		return 'k';
+	}
+	else if (*in >.001)
+	{
+		*in*=1e3;
+		return 'm';
+	}
+	else if (*in >.000001)
+	{
+		*in*=1e6;
+		return 'u';
+	}
+	else if (*in >000000001)
+	{
+		*in*=1e9;
+		return 'n';
+	}
+	else if (*in >000000000001)
+	{
+		*in/=1e12;
+		return 'p';
+	}
+	else
+		return;
 }
 double dtct_pcket(char* if_nm){
 	unsigned long long old=if_getrxpkt(if_nm);
@@ -58,7 +82,7 @@ double dtct_pcket(char* if_nm){
 	time(&start);
 	while(if_getrxpkt(if_nm)<=old);
 	time(&stop);
-	return difftime(start,stop);
+	return difftime(start,stop)/1e9;
 }
 void rpt_pcket(double recieved){
 	char prefix=scale(&recieved);

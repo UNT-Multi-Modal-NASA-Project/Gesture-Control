@@ -15,17 +15,18 @@
 
 void main(int argc, char*argv[]){
 	char *ifname={"wlan0"};
-	int i, avg_flag,decay=10;
+	char sec;
+	int i, avg_flag=0;
 	long samples=16;
 	struct reading rdg;
-	double mavg;
+	double mavg=0,decay=0.1;
 
 	for(i=1;i<argc;i++){
 		if(strcmp(argv[i],"-s")==0)
 			samples=strtol(argv[++i],NULL,0);
 		else if (strcmp(argv[i], "-a")==0)
 			avg_flag=1;
-		else if (argc>0){
+		else if (argc>0 && strcmp(argv[i],"-h")==0){
 			printf("Usage: pwrsamp [-s <# of samples to take>  -a\n");
 			exit(EXIT_SUCCESS);
 		}
@@ -36,9 +37,14 @@ void main(int argc, char*argv[]){
 	{
 		rpt_pcket(dtct_pcket(ifname));
 		rdg=get_sample(ifname,samples, avg_flag);
-		mavg=ewma(mavg,rdg.pwr,decay/100.0);
+		mavg=ewma(mavg,rdg.pwr,decay);
+		rdg.prefix=scale(&(rdg.pwr));
 		put_sample(&rdg);
 		i++;
 	};
-	printf("Samples: %d, Avg power: %f\n",i,mavg);
+	if(avg_flag)
+	{
+		sec=scale(&mavg);
+		printf("Samples: %d, Avg power: %.3f %cW\n",i,mavg,sec);
+	}
 }
