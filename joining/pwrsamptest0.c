@@ -19,7 +19,7 @@ void main(int argc, char*argv[]){
 	int i, avg_flag=0;
 	long samples=16;
 	struct reading rdg;
-	double mavg=0,decay=0.1;
+	double mavg=0,decay=0.1, pkt_time, pkt_pwr;
 
 	for(i=1;i<argc;i++){
 		if(strcmp(argv[i],"-s")==0)
@@ -35,11 +35,11 @@ void main(int argc, char*argv[]){
 	i=0;
 	while(i<samples)
 	{
-		rpt_pcket(dtct_pcket(ifname));
-		rdg=get_sample(ifname,samples, avg_flag);
+		pkt_time=dtct_pcket(ifname);
+		rdg=get_sample(ifname);
 		mavg=ewma(mavg,rdg.pwr,decay);
 		rdg.prefix=scale(&(rdg.pwr));
-		put_sample(&rdg);
+		printf("%f\t%c\t%f\n",rdg.pwr,rdg.prefix,pkt_time);
 		i++;
 	};
 	if(avg_flag)

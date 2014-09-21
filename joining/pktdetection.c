@@ -12,7 +12,7 @@ unsigned long long if_getrxpkt(char *ifname)
         FILE *fp = fopen(path, "r");
 
         if (fp == NULL)
-        	perror("can not open %s");
+        	perror("can not open /proc/net/dev");
         /*
          * Inter-|   Receive                                               $
          *  face |bytes    packets errs drop fifo frame compressed multicas$
@@ -78,11 +78,11 @@ char scale(double* in)
 }
 double dtct_pcket(char* if_nm){
 	unsigned long long old=if_getrxpkt(if_nm);
-	time_t start, stop;
-	time(&start);
+	clock_t start, stop;
+	start=clock();
 	while(if_getrxpkt(if_nm)<=old);
-	time(&stop);
-	return difftime(start,stop)/1e9;
+	stop=clock();
+	return ((double)(stop-start))/CLOCKS_PER_SEC;//seconds
 }
 void rpt_pcket(double recieved){
 	char prefix=scale(&recieved);

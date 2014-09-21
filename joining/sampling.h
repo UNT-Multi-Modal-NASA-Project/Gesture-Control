@@ -18,6 +18,6 @@ struct reading{
 	char prefix;
 };
 
-struct reading get_sample(char * iwname, int max_samples, int avg);
+struct reading get_sample(char * iwname);
 void put_sample(struct reading *);
 #endif

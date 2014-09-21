@@ -10,12 +10,12 @@ double ewma(double, double, double);
 static void iw_getstat(struct iw_statistics *, char *);//actually reads the value
 
 //sampler functions
-struct reading get_sample(char* ifname,int samples,int flag)
+struct reading get_sample(char* ifname)
 {
 	struct iw_statistics reading;
 	int level, dbm;
-	double power, decay=10,avg_pwr=0, mavg=0;
-	char unit;
+	double power;
+//	char unit;
 	struct reading sample;
 
 //	printf("Reading levels:\n");
@@ -28,7 +28,7 @@ struct reading get_sample(char* ifname,int samples,int flag)
 //	printf("%d\t%d(dbm)\t%f(%cW)\t%f\t\t %s\n", level,dbm,power,unit,mavg,(reading.qual.updated & IW_QUAL_LEVEL_UPDATED ? "updated":""));
 
 	sample.pwr=power;
-	sample.prefix=unit;
+//	sample.prefix=unit;
 
 	return sample;
 }
