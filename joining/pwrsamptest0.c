@@ -39,7 +39,8 @@ void main(int argc, char*argv[]){
 		rdg=get_sample(ifname);
 		mavg=ewma(mavg,rdg.pwr,decay);
 		rdg.prefix=scale(&(rdg.pwr));
-		printf("%f\t%c\t%f\n",rdg.pwr,rdg.prefix,pkt_time);
+//		printf("%f\t%c\t%f\n",rdg.pwr,rdg.prefix,pkt_time);
+		printf("%f\n",rdg.pwr);
 		i++;
 	};
 	if(avg_flag)
