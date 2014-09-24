@@ -4,13 +4,13 @@
 #include <stdlib.h>
 #include <time.h>
 
-double sig_gen(double freq, int t, int noiseflg);
+double sig_gen(double freq, double t, int noiseflg);
 double get_rand();
 
 void main(int argc, char *argv[]){
 
 	int now, max_time=1024,nflg=0;
-	double frequency=(5.0*1e9), *signal;
+	double frequency=5.0, *signal;
 	srand(time(NULL));
 	if(argc>4)
 	{
@@ -26,15 +26,15 @@ void main(int argc, char *argv[]){
 	signal=malloc(max_time*sizeof(double));
 
 	for(now=0;now<max_time;now++)
-		signal[now]=sig_gen(frequency,now,nflg);
+		signal[now]=sig_gen(frequency,((double)now)/1e3,nflg);
 
-	printf("signal generated: ");
+	printf("signal generated: \n");
 	for(now=0;now<max_time;now++)
-		printf("%.4f \t",signal[now]);
+		printf("%f\n",30*signal[now]);
 	printf("\n");
 }
 
-double sig_gen(double freq, int t, int noiseflg)
+double sig_gen(double freq, double t, int noiseflg)
 {
 	double noise=0;
         if(noiseflg) noise=get_rand();
