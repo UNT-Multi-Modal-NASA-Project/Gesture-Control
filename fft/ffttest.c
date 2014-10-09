@@ -1,33 +1,23 @@
 
 /*
-* Program to learn the idiocincracie of the fftw3 library
+* Program to learn the idiocincracie of the fftw3 and nfft3 libraries
 */
 
-//#include <rfftw.h> // for fft action
+#include <rfftw.h> // for fft action
 #include <stdio.h>
 
 //These required for the signal generator
 #include <stdlib.h>//for the rand function set
 #include <math.h>
 #include <time.h>
-//These required for nfft
-//#ifdef HAVE_COMPLEX_H
-#include <complex.h>
-//#endif
-#include "config.h"
-#include "nfft3util.h"
-#include "nfft3.h"
-#include "infft.h"
 
 double sig_gen(double freq, double t, int nflag);
 double get_rand();//for noise
-//void load_data(char *, int, double*);
-//double *ufft(double *in, int N);
-double *nufft(double *in, int N);
+void load_data(char *, int, double*);
+double *ufft(fftw_real *in, int N);
 double *scale(double *data, int len);
-//double *magnitude(double*, int);
-double *magnitude(double complex*, int);
-
+double *magnitude(fftw_real*, int);
+double parse_freq(char *);
 main(int argc, char **argv)
 {
         extern char *optarg;
@@ -36,7 +26,8 @@ main(int argc, char **argv)
         int opt, i;
         int ncount = 1024;
 	int noise=0;
-        double *dp, *spectrum;
+        double *spectrum, freq=5.0*1e3;
+	fftw_real *dp;
 	srand(time(NULL));
 
         while ((opt = getopt(argc, argv, "in:")) != -1) {
@@ -50,48 +41,44 @@ main(int argc, char **argv)
 		case 'r':
 			noise=1;
 			break;
+//		case 'F':
+//                        freq=parse_freq(optarg);
                 default:
-                        fprintf(stderr, "usage: %s -r -n count -f input_file\n",
+                        fprintf(stderr, "usage: %s -r -n count -f [input file]",
                             argv[0]);
+//                        fprintf(stderr, "frequency is in the form; 5Hz, 50MHz");
                         return (-1);
                 }
         }
-
         if (ncount <= 0) {
                 fprintf(stderr, "%s: data count must be > 0\n", argv[0]);
                 return (-1);
         }
 
-        dp = (double *)malloc(sizeof (double) * ncount);
+        dp = (fftw_real *)malloc(sizeof (fftw_real) * ncount);
 		for(i=0;i<ncount;i++)
-			dp[i]=sig_gen(5.0*1e3, (double)i,noise);
+			dp[i]=(fftw_real)sig_gen(freq, (double)i,noise);
 
-	spectrum=nufft(dp,ncount);
+	spectrum=ufft(dp,ncount);
 
 	for(i=0;i<ncount/2;i++)
-		printf("%e\t%e\n",dp[i],spectrum[i]);
+		printf("%e\t%e\n",(double)dp[i],spectrum[i]);
 	for(;i<ncount;i++)
-		printf("%e\n", dp[i]);
+		printf("%e\n",(double) dp[i]);
 }
 
 
-double * nufft(double *in,int N){
-	nfft_plan plan;
+double * ufft(fftw_real *in,int N){//does the actual transform
+	rfftw_plan plan;
 	int i;
-	double *out;
+	fftw_real out[N];
 
-	nfft_init_1d(&plan,N,N);
+	plan=rfftw_create_plan(N, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE);
+	rfftw_one(plan, in, out);
+	rfftw_destroy_plan(plan);
 
-	for(i=0;i<N;i++)
-		plan.x[i]=in[i];
+	return magnitude(out, N);
 
-	if(plan.nfft_flags & PRE_ONE_PSI) nfft_precompute_one_psi(&plan);
-
-	nfft_trafo(&plan);
-	out=magnitude(plan.f, N);
-	nfft_finalize(&plan);
-
-	return out;
 }
 
 double sig_gen(double freq, double t, int noiseflg)
@@ -105,15 +92,15 @@ double get_rand(){
 	return(double)(rand()%10)*1e9;
 }
 
-double *magnitude(double complex *out, int N){
+double *magnitude(fftw_real *out, int N){
 	int k;
-	double power_spectrum[N];
+	double power_spectrum[N/2+1];
 
-	power_spectrum[0]=creal(out[0])*creal(out[0]);
+	power_spectrum[0]=out[0]*out[0];
 	for (k=1; k<N;++k)
-		power_spectrum[k]=creal(out[k])*creal(out[k])+cimag(out[k])*cimag(out[k]);
+		power_spectrum[k]=out[k]*out[k]+out[N-k]*out[N-k];
 	if(N%2==0)
-		power_spectrum[N/2]=creal(out[N/2])*creal(out[N/2]);
+		power_spectrum[N/2]=out[N/2]*out[N/2];
 
 	return power_spectrum;
 }
